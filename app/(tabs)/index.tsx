@@ -5,13 +5,13 @@ import { useRouter } from "expo-router";
 import { GradePicker } from "@/components/grade-picker";
 import { TaskCard } from "@/components/task-card";
 import { StorageNotice } from "@/components/storage-notice";
-import { Card, EmptyState, IconButton, LoadingView, Page, PageHeader, Pill, PrimaryButton, SectionTitle } from "@/components/study-ui";
+import { Card, EmptyState, IconButton, LoadingView, Page, PageHeader, Pill, PrimaryButton, SecondaryButton, SectionTitle } from "@/components/study-ui";
 import { useStudyStore } from "@/hooks/use-study-store";
-import { COLORS, elapsedMilliseconds, formatDuration, gradeLabel, sortTasks, toArabicDigits } from "@/lib/study-utils";
+import { COLORS, elapsedMilliseconds, formatClock, formatDuration, gradeLabel, sortTasks, toArabicDigits } from "@/lib/study-utils";
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { state, ready, setGrade, toggleTask } = useStudyStore();
+  const { state, ready, setGrade, toggleTask, pauseSession, resumeSession, finishSession } = useStudyStore();
   const [gradePicker, setGradePicker] = useState(false);
   const [clock, setClock] = useState(0);
 
@@ -26,6 +26,9 @@ export default function DashboardScreen() {
     .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
     .slice(0, 2), [state.tasks]);
   const doneCount = state.tasks.filter((task) => task.completedAt !== null).length;
+  const activeSession = state.sessions.find((session) => session.status !== "completed") ?? null;
+  const activeElapsed = activeSession ? elapsedMilliseconds(activeSession, clock) : 0;
+  const activeSubject = activeSession ? state.subjects.find((subject) => subject.id === activeSession.subjectId) : undefined;
   const totalStudyTime = state.sessions.reduce((sum, session) => sum + elapsedMilliseconds(session, clock), 0);
   const hour = clock ? new Date(clock).getHours() : 12;
   const greeting = hour < 12 ? "صباح الخير" : hour < 18 ? "أهلاً بك" : "مساء الخير";
@@ -57,6 +60,28 @@ export default function DashboardScreen() {
             <PrimaryButton label="ابدأ جلسة" icon="play" onPress={() => router.push("/(tabs)/timer" as never)} style={styles.heroButton} />
           </View>
         </Card>
+
+        {activeSession ? (
+          <Card style={styles.liveCard}>
+            <View style={styles.liveTop}>
+              <View style={styles.liveMark}><Ionicons name={activeSession.status === "running" ? "timer-outline" : "pause-circle-outline"} size={21} color={COLORS.brand} /></View>
+              <View style={styles.liveText}>
+                <Text style={styles.liveTitle}>{activeSession.status === "running" ? "جلسة مذاكرة جارية الآن" : "جلسة متوقفة مؤقتاً"}</Text>
+                <Text style={styles.liveSubject}>{activeSubject?.name ?? "جلسة مستقلة"}{activeSession.goalMs ? ` • الهدف ${formatDuration(activeSession.goalMs)}` : ""}</Text>
+              </View>
+              <Text style={styles.liveClock}>{formatClock(activeElapsed)}</Text>
+            </View>
+            <View style={styles.liveActions}>
+              {activeSession.status === "running" ? (
+                <SecondaryButton label="إيقاف مؤقت" icon="pause" onPress={() => pauseSession(activeSession.id)} style={styles.liveButton} />
+              ) : (
+                <SecondaryButton label="استئناف" icon="play" onPress={() => resumeSession(activeSession.id)} style={styles.liveButton} />
+              )}
+              <SecondaryButton label="إنهاء الجلسة" icon="stop" tone="danger" onPress={() => finishSession(activeSession.id)} style={styles.liveButton} />
+              <SecondaryButton label="فتح المؤقّت" icon="time-outline" tone="neutral" onPress={() => router.push("/(tabs)/timer" as never)} style={styles.liveButton} />
+            </View>
+          </Card>
+        ) : null}
 
         <View style={styles.quickStats}>
           <QuickStat icon="book-outline" value={toArabicDigits(state.subjects.length)} label="مواد" />
@@ -124,6 +149,15 @@ const styles = StyleSheet.create({
   timeBadge: { flexDirection: "row", alignItems: "center", gap: 7 },
   timeValue: { color: COLORS.white, fontSize: 14, fontWeight: "800", writingDirection: "rtl" },
   heroButton: { backgroundColor: COLORS.white, minHeight: 44, borderRadius: 14, paddingHorizontal: 16 },
+  liveCard: { gap: 13 },
+  liveTop: { flexDirection: "row", alignItems: "center", gap: 11, direction: "rtl" },
+  liveMark: { width: 42, height: 42, borderRadius: 14, backgroundColor: COLORS.brandSoft, alignItems: "center", justifyContent: "center" },
+  liveText: { flex: 1, gap: 3, alignItems: "flex-start" },
+  liveTitle: { color: COLORS.ink, fontSize: 14, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
+  liveSubject: { color: COLORS.muted, fontSize: 12, writingDirection: "rtl" },
+  liveClock: { color: COLORS.brand, fontSize: 19, fontWeight: "800", fontVariant: ["tabular-nums"], writingDirection: "ltr" },
+  liveActions: { flexDirection: "row", gap: 8, direction: "rtl" },
+  liveButton: { flex: 1, minHeight: 44, paddingHorizontal: 6 },
   quickStats: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.line, borderRadius: 20, paddingVertical: 15, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-around", direction: "rtl" },
   statItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   statValue: { color: COLORS.ink, fontSize: 17, fontWeight: "900" },
