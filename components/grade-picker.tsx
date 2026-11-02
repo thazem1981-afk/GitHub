@@ -24,18 +24,16 @@ export function GradePicker({
       onClose={required ? () => undefined : onClose}
     >
       <Text style={styles.description}>نرتّب لك دفتر مذاكرتك على مرحلتك.</Text>
-      <Pill label="المرحلة الابتدائية" icon="school-outline" />
-      <View style={styles.list}>
-        {GRADES.slice(0, 6).map((grade) => (
-          <GradeOption key={grade.id} label={grade.label} selected={selectedId === grade.id} onPress={() => onSelect(grade.id)} />
-        ))}
-      </View>
-      <Pill label="المرحلة المتوسطة" icon="school-outline" />
-      <View style={styles.list}>
-        {GRADES.slice(6).map((grade) => (
-          <GradeOption key={grade.id} label={grade.label} selected={selectedId === grade.id} onPress={() => onSelect(grade.id)} />
-        ))}
-      </View>
+      {["الابتدائي", "الإعدادي", "الثانوي"].map((stage) => (
+        <View key={stage} style={styles.stageGroup}>
+          <Pill label={`المرحلة ${stage === "الابتدائي" ? "الابتدائية" : stage === "الإعدادي" ? "الإعدادية" : "الثانوية"}`} icon="school-outline" />
+          <View style={styles.list}>
+            {GRADES.filter((grade) => grade.stage === stage).map((grade) => (
+              <GradeOption key={grade.id} label={grade.label} selected={selectedId === grade.id} onPress={() => onSelect(grade.id)} />
+            ))}
+          </View>
+        </View>
+      ))}
     </BottomSheet>
   );
 }
@@ -53,6 +51,7 @@ function GradeOption({ label, selected, onPress }: { label: string; selected: bo
 
 const styles = StyleSheet.create({
   description: { color: COLORS.muted, textAlign: "right", writingDirection: "rtl", fontSize: 14, lineHeight: 21, marginBottom: 2 },
+  stageGroup: { gap: 10 },
   list: { gap: 8 },
   option: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, paddingHorizontal: 15, backgroundColor: COLORS.surface, direction: "rtl" },
   selected: { borderColor: COLORS.brand, backgroundColor: COLORS.brandSoft },
