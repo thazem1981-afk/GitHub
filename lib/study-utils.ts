@@ -1,7 +1,5 @@
 import {
-  GRADES,
   PRIORITY_RANK,
-  type MonthlyTest,
   type StudySession,
   type StudyTask,
 } from "./study-types";
@@ -120,65 +118,16 @@ export function isOverdue(task: StudyTask, now = new Date()): boolean {
 
 export function gradeLabel(gradeId: string | null): string {
   if (!gradeId) return "اختر صفك الدراسي";
-  return GRADES.find((grade) => grade.id === gradeId)?.label ?? "اختر صفك الدراسي";
-}
-
-/** Session length goals offered before starting, in minutes — longer options included on purpose. */
-export const SESSION_GOALS_MINUTES = [15, 25, 45, 60, 90, 120] as const;
-
-export const ARABIC_MONTHS = [
-  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
-] as const;
-
-/** "YYYY-MM" key for the month containing `date`. */
-export function monthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/** Recent month keys, newest first — used to pick a monthly test's month. */
-export function recentMonthKeys(count: number, now = new Date()): string[] {
-  const keys: string[] = [];
-  for (let offset = 0; offset < count; offset += 1) {
-    keys.push(monthKey(new Date(now.getFullYear(), now.getMonth() - offset, 1)));
-  }
-  return keys;
-}
-
-export function monthLabel(key: string): string {
-  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(key);
-  if (!match) return key;
-  return `${ARABIC_MONTHS[Number(match[2]) - 1]} ${toArabicDigits(match[1])}`;
-}
-
-export interface MonthlySummary {
-  count: number;
-  averagePercent: number | null;
-  bestPercent: number | null;
-}
-
-export function summarizeMonthlyTests(tests: MonthlyTest[]): MonthlySummary {
-  if (!tests.length) return { count: 0, averagePercent: null, bestPercent: null };
-  const percents = tests.map((test) => (test.total > 0 ? (test.score / test.total) * 100 : 0));
-  const average = percents.reduce((sum, value) => sum + value, 0) / percents.length;
-  return {
-    count: tests.length,
-    averagePercent: Math.round(average),
-    bestPercent: Math.round(Math.max(...percents)),
+  const labels: Record<string, string> = {
+    "primary-1": "الأول الابتدائي",
+    "primary-2": "الثاني الابتدائي",
+    "primary-3": "الثالث الابتدائي",
+    "primary-4": "الرابع الابتدائي",
+    "primary-5": "الخامس الابتدائي",
+    "primary-6": "السادس الابتدائي",
+    "middle-1": "الأول المتوسط",
+    "middle-2": "الثاني المتوسط",
+    "middle-3": "الثالث المتوسط",
   };
-}
-
-export function groupTestsByMonth(tests: MonthlyTest[]): { monthKey: string; tests: MonthlyTest[] }[] {
-  const groups = new Map<string, MonthlyTest[]>();
-  for (const test of tests) {
-    const list = groups.get(test.monthKey) ?? [];
-    list.push(test);
-    groups.set(test.monthKey, list);
-  }
-  return [...groups.entries()]
-    .sort((a, b) => b[0].localeCompare(a[0]))
-    .map(([key, list]) => ({
-      monthKey: key,
-      tests: [...list].sort((a, b) => b.createdAt - a.createdAt),
-    }));
+  return labels[gradeId] ?? "اختر صفك الدراسي";
 }

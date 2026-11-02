@@ -31,10 +31,8 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "الملخص", tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="lessons" options={{ title: "الدروس", tabBarIcon: ({ color, size }) => <Ionicons name="play-circle-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="tasks" options={{ title: "المهام", tabBarIcon: ({ color, size }) => <Ionicons name="checkmark-circle-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="timer" options={{ title: "جلسة", tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="tests" options={{ title: "الاختبارات", tabBarIcon: ({ color, size }) => <Ionicons name="clipboard-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="subjects" options={{ title: "المواد", tabBarIcon: ({ color, size }) => <Ionicons name="library-outline" size={size} color={color} /> }} />
     </Tabs>
   );
