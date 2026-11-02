@@ -1,13 +1,16 @@
 export const GRADES = [
-  { id: "primary-1", label: "الأول الابتدائي" },
-  { id: "primary-2", label: "الثاني الابتدائي" },
-  { id: "primary-3", label: "الثالث الابتدائي" },
-  { id: "primary-4", label: "الرابع الابتدائي" },
-  { id: "primary-5", label: "الخامس الابتدائي" },
-  { id: "primary-6", label: "السادس الابتدائي" },
-  { id: "middle-1", label: "الأول المتوسط" },
-  { id: "middle-2", label: "الثاني المتوسط" },
-  { id: "middle-3", label: "الثالث المتوسط" },
+  { id: "primary-1", label: "الأول الابتدائي", stage: "الابتدائي" },
+  { id: "primary-2", label: "الثاني الابتدائي", stage: "الابتدائي" },
+  { id: "primary-3", label: "الثالث الابتدائي", stage: "الابتدائي" },
+  { id: "primary-4", label: "الرابع الابتدائي", stage: "الابتدائي" },
+  { id: "primary-5", label: "الخامس الابتدائي", stage: "الابتدائي" },
+  { id: "primary-6", label: "السادس الابتدائي", stage: "الابتدائي" },
+  { id: "middle-1", label: "الأول الإعدادي", stage: "الإعدادي" },
+  { id: "middle-2", label: "الثاني الإعدادي", stage: "الإعدادي" },
+  { id: "middle-3", label: "الثالث الإعدادي", stage: "الإعدادي" },
+  { id: "secondary-1", label: "الأول الثانوي", stage: "الثانوي" },
+  { id: "secondary-2", label: "الثاني الثانوي", stage: "الثانوي" },
+  { id: "secondary-3", label: "الثالث الثانوي", stage: "الثانوي" },
 ] as const;
 
 export type GradeId = (typeof GRADES)[number]["id"];
@@ -41,6 +44,19 @@ export interface StudySession {
   elapsedMs: number;
   finishedAt: number | null;
   createdAt: number;
+  /** Optional session goal chosen before starting; absent in older saved sessions. */
+  goalMs?: number | null;
+}
+
+export interface MonthlyTest {
+  id: string;
+  subjectId: string;
+  /** Calendar month the school test belongs to, formatted "YYYY-MM". */
+  monthKey: string;
+  score: number;
+  total: number;
+  notes: string;
+  createdAt: number;
 }
 
 export interface StudyState {
@@ -49,6 +65,8 @@ export interface StudyState {
   subjects: Subject[];
   tasks: StudyTask[];
   sessions: StudySession[];
+  monthlyTests: MonthlyTest[];
+  watchedLessonIds: string[];
 }
 
 export const EMPTY_STUDY_STATE: StudyState = {
@@ -57,6 +75,8 @@ export const EMPTY_STUDY_STATE: StudyState = {
   subjects: [],
   tasks: [],
   sessions: [],
+  monthlyTests: [],
+  watchedLessonIds: [],
 };
 
 export const PRIORITY_RANK: Record<TaskPriority, number> = {
