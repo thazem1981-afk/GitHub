@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   EMPTY_STUDY_STATE,
   GRADES,
+  type MonthlyTest,
   type StudySession,
   type StudyState,
   type StudyTask,
@@ -66,11 +67,28 @@ function isStudySession(value: unknown): value is StudySession {
     || !isFiniteNumber(value.elapsedMs)
     || value.elapsedMs < 0
     || !isNullableNumber(value.finishedAt)
-    || !isFiniteNumber(value.createdAt)) return false;
+    || !isFiniteNumber(value.createdAt)
+    || !(value.goalMs === undefined || value.goalMs === null || (isFiniteNumber(value.goalMs) && value.goalMs > 0))) return false;
 
   if (value.status === "running") return value.startedAt !== null && value.finishedAt === null;
   if (value.status === "paused") return value.startedAt === null && value.finishedAt === null;
   return value.status === "completed" && value.startedAt === null && value.finishedAt !== null;
+}
+
+function isMonthlyTest(value: unknown): value is MonthlyTest {
+  if (!isRecord(value)) return false;
+  return isNonemptyString(value.id)
+    && typeof value.subjectId === "string"
+    && typeof value.monthKey === "string"
+    && /^\d{4}-(0[1-9]|1[0-2])$/.test(value.monthKey)
+    && isFiniteNumber(value.score)
+    && value.score >= 0
+    && isFiniteNumber(value.total)
+    && value.total > 0
+    && value.score <= value.total
+    && typeof value.notes === "string"
+    && value.notes.length <= 300
+    && isFiniteNumber(value.createdAt);
 }
 
 function isStudyState(value: unknown): value is StudyState {
@@ -82,7 +100,10 @@ function isStudyState(value: unknown): value is StudyState {
     && Array.isArray(value.tasks)
     && value.tasks.every(isStudyTask)
     && Array.isArray(value.sessions)
-    && value.sessions.every(isStudySession);
+    && value.sessions.every(isStudySession)
+    // Fields added after the first release: older saves may not have them yet.
+    && (value.monthlyTests === undefined || (Array.isArray(value.monthlyTests) && value.monthlyTests.every(isMonthlyTest)))
+    && (value.watchedLessonIds === undefined || (Array.isArray(value.watchedLessonIds) && value.watchedLessonIds.every((id) => typeof id === "string")));
 }
 
 export async function loadStudyState(): Promise<StudyState> {
@@ -99,6 +120,8 @@ export async function loadStudyState(): Promise<StudyState> {
     subjects: parsed.subjects,
     tasks: parsed.tasks,
     sessions: parsed.sessions,
+    monthlyTests: parsed.monthlyTests ?? [],
+    watchedLessonIds: parsed.watchedLessonIds ?? [],
   };
 }
 

@@ -4,17 +4,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet, Card, EmptyState, LoadingView, Page, PageHeader, PrimaryButton, SecondaryButton } from "@/components/study-ui";
 import { StorageNotice } from "@/components/storage-notice";
 import { useStudyStore } from "@/hooks/use-study-store";
-import { COLORS, elapsedMilliseconds, formatClock, formatDate, formatDuration } from "@/lib/study-utils";
+import { COLORS, SESSION_GOALS_MINUTES, elapsedMilliseconds, formatClock, formatDate, formatDuration, toArabicDigits } from "@/lib/study-utils";
 
 export default function TimerScreen() {
   const { state, ready, startSession, pauseSession, resumeSession, finishSession } = useStudyStore();
   const [tick, setTick] = useState(0);
   const [subjectId, setSubjectId] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [goalMinutes, setGoalMinutes] = useState<number | null>(60);
   const [picker, setPicker] = useState<"subject" | "task" | null>(null);
   const activeSession = state.sessions.find((session) => session.status !== "completed") ?? null;
   const isRunning = activeSession?.status === "running";
   const elapsed = activeSession ? elapsedMilliseconds(activeSession, tick) : 0;
+  const goalMs = activeSession ? activeSession.goalMs ?? null : goalMinutes ? goalMinutes * 60_000 : null;
+  const goalReached = goalMs !== null && elapsed >= goalMs;
   const selectedSubjectId = activeSession ? activeSession.subjectId : subjectId;
   const selectedTaskId = activeSession ? activeSession.taskId : taskId;
   const selectedSubject = state.subjects.find((subject) => subject.id === selectedSubjectId);
@@ -33,7 +36,7 @@ export default function TimerScreen() {
   const history = useMemo(() => state.sessions.filter((session) => session.status === "completed").sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0)).slice(0, 8), [state.sessions]);
   const start = () => {
     setTick(Date.now());
-    startSession(subjectId, taskId);
+    startSession(subjectId, taskId, goalMinutes ? goalMinutes * 60_000 : null);
   };
   const finish = () => {
     if (!activeSession) return;
@@ -57,9 +60,32 @@ export default function TimerScreen() {
           <Text style={styles.timerCaption}>{activeSession ? activeSession.status === "paused" ? "الجلسة متوقفة مؤقتاً" : "وقت التركيز" : "على مهل… خذ نفساً وابدأ"}</Text>
           <Text style={styles.timerDigits} accessibilityLabel={`الوقت ${formatClock(elapsed)}`}>{formatClock(elapsed)}</Text>
           <Text style={styles.timerDetail}>{formatDuration(elapsed)} من المذاكرة</Text>
-          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.min(100, Math.max(7, (elapsed / (25 * 60_000)) * 100))}%` }]} /></View>
-          <Text style={styles.focusHint}>كل دقيقة تركيز تُحسب لك</Text>
+          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.min(100, Math.max(7, (elapsed / (goalMs ?? 25 * 60_000)) * 100))}%` }]} /></View>
+          <Text style={styles.focusHint}>
+            {goalReached
+              ? "أحسنت! وصلت إلى هدف الجلسة — يمكنك الاستمرار أو الإنهاء"
+              : goalMs
+                ? `هدف الجلسة: ${formatDuration(goalMs)}`
+                : "كل دقيقة تركيز تُحسب لك"}
+          </Text>
         </Card>
+
+        {!activeSession ? (
+          <View style={styles.linkSection}>
+            <Text style={styles.sectionTitle}>هدف الجلسة</Text>
+            <View style={styles.goalChips}>
+              <Pressable onPress={() => setGoalMinutes(null)} style={[styles.goalChip, goalMinutes === null && styles.goalChipSelected]}>
+                <Text style={[styles.goalChipText, goalMinutes === null && styles.goalChipTextSelected]}>بدون هدف</Text>
+              </Pressable>
+              {SESSION_GOALS_MINUTES.map((minutes) => (
+                <Pressable key={minutes} onPress={() => setGoalMinutes(minutes)} style={[styles.goalChip, goalMinutes === minutes && styles.goalChipSelected]}>
+                  <Text style={[styles.goalChipText, goalMinutes === minutes && styles.goalChipTextSelected]}>{toArabicDigits(minutes)} دقيقة</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.linkNote}>اختر هدفاً أطول عندما تكون مستعداً لجلسة تركيز عميقة.</Text>
+          </View>
+        ) : null}
 
         <View style={styles.linkSection}>
           <Text style={styles.sectionTitle}>اربط جلستك (اختياري)</Text>
@@ -206,6 +232,11 @@ const styles = StyleSheet.create({
   selectionTitle: { color: COLORS.muted, fontSize: 11, fontWeight: "700", writingDirection: "rtl" },
   selectionValue: { color: COLORS.ink, fontSize: 14, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
   linkNote: { color: COLORS.muted, fontSize: 11, textAlign: "right", writingDirection: "rtl" },
+  goalChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, direction: "rtl" },
+  goalChip: { borderWidth: 1, borderColor: COLORS.line, backgroundColor: COLORS.surface, borderRadius: 30, paddingHorizontal: 13, paddingVertical: 9 },
+  goalChipSelected: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  goalChipText: { color: COLORS.ink, fontSize: 13, fontWeight: "700", writingDirection: "rtl" },
+  goalChipTextSelected: { color: COLORS.white },
   mainButton: { minHeight: 58 },
   controlRow: { flexDirection: "row", gap: 10, direction: "rtl" },
   controlButton: { flex: 1, minHeight: 54 },
