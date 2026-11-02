@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import {
   EMPTY_STUDY_STATE,
   type GradeId,
+  type MonthlyTest,
   type StudySession,
   type StudyState,
   type StudyTask,
@@ -23,6 +24,14 @@ interface TaskInput {
   priority: StudyTask["priority"];
 }
 
+interface MonthlyTestInput {
+  subjectId: string;
+  monthKey: string;
+  score: number;
+  total: number;
+  notes: string;
+}
+
 interface StudyStoreValue {
   state: StudyState;
   ready: boolean;
@@ -35,10 +44,14 @@ interface StudyStoreValue {
   updateTask: (id: string, input: TaskInput) => void;
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
-  startSession: (subjectId: string | null, taskId: string | null) => void;
+  startSession: (subjectId: string | null, taskId: string | null, goalMs?: number | null) => void;
   pauseSession: (id: string) => void;
   resumeSession: (id: string) => void;
   finishSession: (id: string) => void;
+  addMonthlyTest: (input: MonthlyTestInput) => void;
+  updateMonthlyTest: (id: string, input: MonthlyTestInput) => void;
+  deleteMonthlyTest: (id: string) => void;
+  toggleLessonWatched: (lessonId: string) => void;
 }
 
 const StudyStoreContext = createContext<StudyStoreValue | null>(null);
@@ -108,6 +121,7 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
       subjects: current.subjects.filter((subject) => subject.id !== id),
       tasks: current.tasks.map((task) => task.subjectId === id ? { ...task, subjectId: "" } : task),
       sessions: current.sessions.map((session) => session.subjectId === id ? { ...session, subjectId: null } : session),
+      monthlyTests: current.monthlyTests.map((test) => test.subjectId === id ? { ...test, subjectId: "" } : test),
     }));
   }, [commit]);
 
@@ -145,7 +159,7 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
     }));
   }, [commit]);
 
-  const startSession = useCallback((subjectId: string | null, taskId: string | null) => {
+  const startSession = useCallback((subjectId: string | null, taskId: string | null, goalMs: number | null = null) => {
     const now = Date.now();
     const session: StudySession = {
       id: makeId("session"),
@@ -156,6 +170,7 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
       elapsedMs: 0,
       finishedAt: null,
       createdAt: now,
+      goalMs,
     };
     commit((current) => {
       if (current.sessions.some((item) => item.status !== "completed")) return current;
@@ -202,6 +217,34 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
     }));
   }, [commit]);
 
+  const addMonthlyTest = useCallback((input: MonthlyTestInput) => {
+    const test: MonthlyTest = { id: makeId("test"), ...input, createdAt: Date.now() };
+    commit((current) => ({ ...current, monthlyTests: [test, ...current.monthlyTests] }));
+  }, [commit]);
+
+  const updateMonthlyTest = useCallback((id: string, input: MonthlyTestInput) => {
+    commit((current) => ({
+      ...current,
+      monthlyTests: current.monthlyTests.map((test) => test.id === id ? { ...test, ...input } : test),
+    }));
+  }, [commit]);
+
+  const deleteMonthlyTest = useCallback((id: string) => {
+    commit((current) => ({
+      ...current,
+      monthlyTests: current.monthlyTests.filter((test) => test.id !== id),
+    }));
+  }, [commit]);
+
+  const toggleLessonWatched = useCallback((lessonId: string) => {
+    commit((current) => ({
+      ...current,
+      watchedLessonIds: current.watchedLessonIds.includes(lessonId)
+        ? current.watchedLessonIds.filter((id) => id !== lessonId)
+        : [lessonId, ...current.watchedLessonIds],
+    }));
+  }, [commit]);
+
   const value: StudyStoreValue = {
     state,
     ready,
@@ -218,6 +261,10 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
     pauseSession,
     resumeSession,
     finishSession,
+    addMonthlyTest,
+    updateMonthlyTest,
+    deleteMonthlyTest,
+    toggleLessonWatched,
   };
 
   return <StudyStoreContext.Provider value={value}>{children}</StudyStoreContext.Provider>;
