@@ -7,15 +7,28 @@ import { TaskForm } from "@/components/task-form";
 import { StorageNotice } from "@/components/storage-notice";
 import { Card, EmptyState, LoadingView, Page, PageHeader, PrimaryButton, SectionTitle } from "@/components/study-ui";
 import { useStudyStore } from "@/hooks/use-study-store";
-import { COLORS, dateKey, sortTasks } from "@/lib/study-utils";
+import { COLORS, dateKey, isOverdue, sortTasks, toArabicDigits } from "@/lib/study-utils";
+import { tasksDueOn } from "@/lib/study-stats";
 import type { StudyTask } from "@/lib/study-types";
 
 const FILTERS = [
   { id: "open", label: "القادمة" },
+  { id: "today", label: "اليوم" },
+  { id: "overdue", label: "متأخرة" },
   { id: "done", label: "المنجزة" },
   { id: "all", label: "الكل" },
 ] as const;
 type FilterId = (typeof FILTERS)[number]["id"];
+
+function matchesFilter(task: StudyTask, filter: FilterId, now: Date): boolean {
+  switch (filter) {
+    case "all": return true;
+    case "done": return task.completedAt !== null;
+    case "today": return tasksDueOn([task], now).length === 1;
+    case "overdue": return isOverdue(task, now);
+    default: return task.completedAt === null;
+  }
+}
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -27,8 +40,8 @@ export default function TasksScreen() {
   const [newDueDate, setNewDueDate] = useState("");
 
   const filteredTasks = useMemo(() => {
-    const filtered = state.tasks.filter((task) => filter === "all" || (filter === "done" ? task.completedAt !== null : task.completedAt === null));
-    return sortTasks(filtered);
+    const now = new Date();
+    return sortTasks(state.tasks.filter((task) => matchesFilter(task, filter, now)));
   }, [state.tasks, filter]);
   const startEdit = (task: StudyTask) => { setEditing(task); setFormVisible(true); };
   const startNew = () => {
@@ -51,10 +64,10 @@ export default function TasksScreen() {
         <View style={styles.filters}>
           {FILTERS.map((item) => {
             const selected = filter === item.id;
-            const count = item.id === "all" ? state.tasks.length : state.tasks.filter((task) => item.id === "done" ? task.completedAt !== null : task.completedAt === null).length;
+            const count = state.tasks.filter((task) => matchesFilter(task, item.id, new Date())).length;
             return (
               <Text key={item.id} onPress={() => setFilter(item.id)} style={[styles.filter, selected && styles.filterSelected]}>
-                {item.label} · {count}
+                {item.label} · {toArabicDigits(count)}
               </Text>
             );
           })}
@@ -77,8 +90,8 @@ export default function TasksScreen() {
           <Card>
             <EmptyState
               icon={filter === "done" ? "checkmark-done-outline" : "list-outline"}
-              title={filter === "done" ? "لم تنجز مهمة بعد" : "مساحة لخطوتك التالية"}
-              description={filter === "done" ? "عندما تتمّ مهمة، ستجدها هنا." : state.subjects.length ? "أضف مهمة مرتبطة بمادة وحدد موعدها وأولويتها." : "ابدأ بإضافة مادة دراسية، ثم أنشئ المهمة الأولى."}
+              title={filter === "done" ? "لم تنجز مهمة بعد" : filter === "today" ? "لا مهام لليوم" : filter === "overdue" ? "لا مهام متأخرة" : "مساحة لخطوتك التالية"}
+              description={filter === "done" ? "عندما تتمّ مهمة، ستجدها هنا." : filter === "today" ? "ليس لديك مهمة مستحقة اليوم. راجع مهام الغد أو أضف مهمة جديدة." : filter === "overdue" ? "ممتاز — كل مهامك في موعدها." : state.subjects.length ? "أضف مهمة مرتبطة بمادة وحدد موعدها وأولويتها." : "ابدأ بإضافة مادة دراسية، ثم أنشئ المهمة الأولى."}
               action={!state.subjects.length ? <PrimaryButton label="إضافة مادة" icon="book-outline" onPress={() => router.push("/(tabs)/subjects" as never)} /> : undefined}
             />
           </Card>

@@ -2,18 +2,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { BackupPanel } from "@/components/backup-panel";
 import { GradePicker } from "@/components/grade-picker";
 import { TaskCard } from "@/components/task-card";
 import { StorageNotice } from "@/components/storage-notice";
 import { Card, EmptyState, IconButton, LoadingView, Page, PageHeader, Pill, PrimaryButton, SecondaryButton, SectionTitle } from "@/components/study-ui";
 import { useStudyStore } from "@/hooks/use-study-store";
-import { COLORS, elapsedMilliseconds, formatClock, formatDuration, gradeLabel, sortTasks, toArabicDigits } from "@/lib/study-utils";
+import { COLORS, elapsedMilliseconds, formatClock, formatDuration, gradeLabel, isOverdue, sortTasks, toArabicDigits } from "@/lib/study-utils";
+import { studyStreakDays, studyTimeInLastDays, taskProgress } from "@/lib/study-stats";
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { state, ready, setGrade, toggleTask, pauseSession, resumeSession, finishSession } = useStudyStore();
   const [gradePicker, setGradePicker] = useState(false);
-  const [clock, setClock] = useState(0);
+  const [clock, setClock] = useState(() => Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => setClock(Date.now()), 1000);
@@ -30,8 +32,13 @@ export default function DashboardScreen() {
   const activeElapsed = activeSession ? elapsedMilliseconds(activeSession, clock) : 0;
   const activeSubject = activeSession ? state.subjects.find((subject) => subject.id === activeSession.subjectId) : undefined;
   const totalStudyTime = state.sessions.reduce((sum, session) => sum + elapsedMilliseconds(session, clock), 0);
-  const hour = clock ? new Date(clock).getHours() : 12;
+  const hour = new Date(clock).getHours();
   const greeting = hour < 12 ? "صباح الخير" : hour < 18 ? "أهلاً بك" : "مساء الخير";
+  const nowDate = new Date(clock);
+  const streakDays = studyStreakDays(state.sessions, nowDate);
+  const weekStudyTime = studyTimeInLastDays(state.sessions, 7, nowDate);
+  const progress = taskProgress(state.tasks);
+  const overdueCount = state.tasks.filter((task) => isOverdue(task, nowDate)).length;
 
   if (!ready) return <LoadingView />;
 
@@ -91,6 +98,30 @@ export default function DashboardScreen() {
           <QuickStat icon="checkmark-circle-outline" value={toArabicDigits(doneCount)} label="منجزة" />
         </View>
 
+        <Card style={styles.weekCard}>
+          <View style={styles.weekTop}>
+            <Text style={styles.weekTitle}>أسبوعك</Text>
+            {overdueCount ? (
+              <Pill label={`${toArabicDigits(overdueCount)} مهمة متأخرة`} color={COLORS.red} background={COLORS.redSoft} icon="alert-circle-outline" />
+            ) : null}
+          </View>
+          <View style={styles.weekStats}>
+            <QuickStat icon="flame-outline" value={toArabicDigits(streakDays)} label="يوم متتالٍ" />
+            <View style={styles.statDivider} />
+            <QuickStat icon="calendar-outline" value={formatDuration(weekStudyTime)} label="هذا الأسبوع" />
+          </View>
+          {progress.percent !== null ? (
+            <>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
+              </View>
+              <Text style={styles.progressText}>أنجزت {toArabicDigits(progress.percent)}٪ من مهامك ({toArabicDigits(progress.done)} من {toArabicDigits(progress.total)})</Text>
+            </>
+          ) : (
+            <Text style={styles.progressText}>أضف مهمتك الأولى وابدأ سلسلة مذاكرتك اليوم.</Text>
+          )}
+        </Card>
+
         <View style={styles.section}>
           <SectionTitle title="المهام القادمة" actionLabel="كل المهام" onAction={() => router.push("/(tabs)/tasks" as never)} />
           {openTasks.length ? (
@@ -116,6 +147,8 @@ export default function DashboardScreen() {
             </View>
           </View>
         ) : null}
+
+        <BackupPanel />
       </Page>
 
       <GradePicker
@@ -163,6 +196,13 @@ const styles = StyleSheet.create({
   statValue: { color: COLORS.ink, fontSize: 17, fontWeight: "900" },
   statLabel: { color: COLORS.muted, fontSize: 12, writingDirection: "rtl" },
   statDivider: { width: 1, height: 25, backgroundColor: COLORS.line },
+  weekCard: { gap: 12 },
+  weekTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", direction: "rtl" },
+  weekTitle: { color: COLORS.ink, fontSize: 15, fontWeight: "900", writingDirection: "rtl" },
+  weekStats: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", direction: "rtl" },
+  progressTrack: { height: 8, borderRadius: 6, backgroundColor: COLORS.surfaceAlt, overflow: "hidden", direction: "ltr" },
+  progressFill: { height: "100%", borderRadius: 6, backgroundColor: COLORS.brand },
+  progressText: { color: COLORS.muted, fontSize: 12, textAlign: "right", writingDirection: "rtl" },
   section: { gap: 12 },
   list: { gap: 9 },
 });
