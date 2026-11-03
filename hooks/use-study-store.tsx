@@ -10,6 +10,7 @@ import {
 } from "@/lib/study-types";
 import { elapsedMilliseconds, makeId } from "@/lib/study-utils";
 import { loadStudyState, saveStudyState } from "@/lib/study-storage";
+import { createBackupJson, parseBackupJson } from "@/lib/study-backup";
 
 interface SubjectInput {
   name: string;
@@ -52,6 +53,8 @@ interface StudyStoreValue {
   updateMonthlyTest: (id: string, input: MonthlyTestInput) => void;
   deleteMonthlyTest: (id: string) => void;
   toggleLessonWatched: (lessonId: string) => void;
+  exportBackup: () => string;
+  importBackup: (text: string) => boolean;
 }
 
 const StudyStoreContext = createContext<StudyStoreValue | null>(null);
@@ -245,6 +248,21 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
     }));
   }, [commit]);
 
+  const exportBackup = useCallback((): string => {
+    return createBackupJson(stateRef.current);
+  }, []);
+
+  const importBackup = useCallback((text: string): boolean => {
+    let parsed: StudyState;
+    try {
+      parsed = parseBackupJson(text);
+    } catch {
+      return false;
+    }
+    commit(() => parsed);
+    return true;
+  }, [commit]);
+
   const value: StudyStoreValue = {
     state,
     ready,
@@ -265,6 +283,8 @@ export function StudyStoreProvider({ children }: { children: React.ReactNode }) 
     updateMonthlyTest,
     deleteMonthlyTest,
     toggleLessonWatched,
+    exportBackup,
+    importBackup,
   };
 
   return <StudyStoreContext.Provider value={value}>{children}</StudyStoreContext.Provider>;
